@@ -18,6 +18,9 @@ class EKGChat {
     }
 
     init() {
+        // Load session ID
+        this.sessionId = localStorage.getItem('ekg_session_id');
+
         // Event listeners
         this.sendBtn.addEventListener('click', () => this.sendMessage());
         this.clearBtn.addEventListener('click', () => this.clearChat());
@@ -92,10 +95,19 @@ class EKGChat {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ message }),
+                body: JSON.stringify({
+                    message,
+                    session_id: this.sessionId
+                }),
             });
 
             const data = await response.json();
+
+            // Store new session ID if provided
+            if (data.session_id) {
+                this.sessionId = data.session_id;
+                localStorage.setItem('ekg_session_id', this.sessionId);
+            }
 
             // Remove loading
             this.removeMessage(loadingId);
@@ -203,16 +215,22 @@ class EKGChat {
         });
 
         // Clear context on server
-        try {
-            await fetch('/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ message: '', clear_context: true }),
-            });
-        } catch (error) {
-            console.error('Failed to clear context:', error);
+        if (this.sessionId) {
+            try {
+                await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: '',
+                        clear_context: true,
+                        session_id: this.sessionId
+                    }),
+                });
+            } catch (error) {
+                console.error('Failed to clear context:', error);
+            }
         }
 
         this.messageInput.focus();

@@ -8,6 +8,7 @@ This module provides REST endpoints for:
 """
 
 import os
+import uuid
 from pathlib import Path
 from typing import Any, Optional
 from contextlib import asynccontextmanager
@@ -141,11 +142,13 @@ app.add_middleware(
 # Request/Response models
 class ChatRequest(BaseModel):
     message: str
+    session_id: Optional[str] = None
     clear_context: bool = False
 
 
 class ChatResponse(BaseModel):
     response: str
+    session_id: str
     function_calls: list[dict] = []
     nodes_mentioned: list[str] = []
 
@@ -197,11 +200,14 @@ async def chat(request: ChatRequest):
     if not nlp_processor or not query_engine:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
+    # Generate or reuse session ID
+    session_id = request.session_id or str(uuid.uuid4())
+    
     if request.clear_context:
-        nlp_processor.clear_context()
+        nlp_processor.clear_context(session_id)
     
     # Get function calls from NLP
-    _, function_calls = nlp_processor.process_query(request.message)
+    _, function_calls = nlp_processor.process_query(request.message, session_id)
     
     # Execute function calls
     function_results = []
@@ -225,12 +231,15 @@ async def chat(request: ChatRequest):
     
     # Generate response
     if function_results:
-        response_text = nlp_processor.generate_response(request.message, function_results)
+        response_text = nlp_processor.generate_response(request.message, function_results, session_id)
     else:
-        response_text = "I couldn't understand that query. Try asking about services, databases, teams, or their relationships."
+        # For simple chitchat without function calls, we still need to generate a response
+        # using the history
+        response_text = nlp_processor.generate_response(request.message, [], session_id)
     
     return ChatResponse(
         response=response_text,
+        session_id=session_id,
         function_calls=function_results,
         nodes_mentioned=nodes_mentioned
     )

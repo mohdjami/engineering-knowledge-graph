@@ -17,12 +17,6 @@ from openai import OpenAI
 class ParsedIntent:
     """
     Represents a parsed user intent.
-    
-    Attributes:
-        intent_type: Category of the query (ownership, dependency, blast_radius, etc.)
-        operation: Specific query operation to perform
-        parameters: Parameters for the operation
-        original_query: The original natural language query
     """
     intent_type: str
     operation: str
@@ -32,15 +26,9 @@ class ParsedIntent:
 
 class NLPProcessor:
     """
-    Natural language processor using OpenAI for intent classification.
+    Natural language processor using LangChain and OpenAI.
     
-    Supports:
-    - Ownership queries ("Who owns...")
-    - Dependency queries ("What does X depend on...")
-    - Blast radius queries ("What breaks if...")
-    - Exploration queries ("List all services...")
-    - Path queries ("How does X connect to Y...")
-    - Follow-up queries with context
+    Supports persistent chat history via Redis.
     """
     
     # Available functions for the LLM to call
@@ -260,34 +248,52 @@ When the user asks a follow-up question, use the conversation context to underst
         if not self.api_key:
             raise ValueError("OpenAI API key not provided")
         
+        self.redis_url = os.getenv("REDIS_URL")
+        if not self.redis_url:
+            raise ValueError("REDIS_URL environment variable not set")
+            
         self.client = OpenAI(api_key=self.api_key)
-        self.conversation_history: list[dict] = []
-        self.last_mentioned_nodes: list[str] = []
+        
+        # We will initialize history per session request
     
-    def process_query(self, query: str) -> tuple[str, list[dict]]:
+    def _get_history(self, session_id: str):
+        """Get Redis-backed chat history."""
+        from langchain_community.chat_message_histories import RedisChatMessageHistory
+        
+        return RedisChatMessageHistory(
+            session_id=session_id,
+            url=self.redis_url,
+            # Data expiry (optional, e.g., 2 weeks)
+            ttl=1209600
+        )
+
+    def process_query(self, query: str, session_id: str) -> tuple[str, list[dict]]:
         """
         Process a natural language query and return function calls to execute.
-        
-        Args:
-            query: The user's natural language query
-            
-        Returns:
-            Tuple of (response_text, function_calls)
-            where function_calls is a list of {function_name, arguments}
         """
-        # Add user message to history
-        self.conversation_history.append({
-            "role": "user",
-            "content": query
-        })
+        history = self._get_history(session_id)
         
-        # Keep conversation history manageable
-        if len(self.conversation_history) > 10:
-            self.conversation_history = self.conversation_history[-10:]
+        # Add user message
+        history.add_user_message(query)
         
-        messages = [
-            {"role": "system", "content": self.SYSTEM_PROMPT}
-        ] + self.conversation_history
+        # Construct message list for OpenAI
+        # We need to convert LangChain messages to OpenAI format
+        messages = [{"role": "system", "content": self.SYSTEM_PROMPT}]
+        
+        # Get recent history (limit context window)
+        lc_messages = history.messages[-10:] 
+        
+        for msg in lc_messages:
+            role = "user" if msg.type == "human" else "assistant"
+            # Note: LangChain stores function calls differently, but for simplicity
+            # in this hybrid approach, we'll mainly rely on text content for context
+            # or we could fully parse them.
+            # Ideally we'd validly reconstruct tool calls.
+            # For now, let's just pass text content to keep context.
+            messages.append({"role": role, "content": msg.content})
+            
+        # Add current user query (it's already in history but we're building the prompt)
+        # Actually history.messages includes the one we just added.
         
         try:
             response = self.client.chat.completions.create(
@@ -309,12 +315,9 @@ When the user asks a follow-up question, use the conversation context to underst
                         "arguments": json.loads(tool_call.function.arguments)
                     })
             
-            # Add assistant message to history
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": message.content or "",
-                "tool_calls": message.tool_calls
-            })
+            # We DON'T add the intermediate assistant message (with tool calls) to history 
+            # to avoid cluttering human-readable history, OR we can if we want full debug.
+            # For this simple implementation, we'll only store the FINAL response in history.
             
             return message.content or "", function_calls
             
@@ -324,40 +327,33 @@ When the user asks a follow-up question, use the conversation context to underst
     def generate_response(
         self,
         query: str,
-        function_results: list[dict]
+        function_results: list[dict],
+        session_id: str
     ) -> str:
         """
         Generate a natural language response based on function results.
-        
-        Args:
-            query: The original user query
-            function_results: Results from executed function calls
-            
-        Returns:
-            Natural language response
         """
-        # Add function results to conversation
-        for result in function_results:
-            self.conversation_history.append({
-                "role": "tool",
-                "tool_call_id": result["id"],
-                "content": json.dumps(result["result"])
-            })
+        history = self._get_history(session_id)
+        messages = [{"role": "system", "content": self.SYSTEM_PROMPT}]
+        
+        # Reconstruct context
+        lc_messages = history.messages[-10:]
+        for msg in lc_messages:
+            role = "user" if msg.type == "human" else "assistant"
+            messages.append({"role": role, "content": msg.content})
             
-            # Track mentioned nodes for follow-up context
-            if isinstance(result["result"], dict) and result["result"].get("id"):
-                self.last_mentioned_nodes.append(result["result"]["id"])
-            elif isinstance(result["result"], list):
-                for item in result["result"]:
-                    if isinstance(item, dict) and item.get("id"):
-                        self.last_mentioned_nodes.append(item["id"])
+        # Appending function results effectively as "system" or "tool" context for the final generation
+        # Since we aren't using the full tool-call history flow in LangChain here,
+        # we can inject the results as a system message context
         
-        # Keep only recent mentioned nodes
-        self.last_mentioned_nodes = self.last_mentioned_nodes[-5:]
-        
-        messages = [
-            {"role": "system", "content": self.SYSTEM_PROMPT + "\n\nNow provide a helpful, concise response based on the function results."}
-        ] + self.conversation_history
+        results_context = "\n\nFunction Results:\n"
+        for result in function_results:
+            results_context += f"Function: {result['function_name']}\nResult: {json.dumps(result['result'])}\n\n"
+            
+        messages.append({
+            "role": "system", 
+            "content": f"The user asked: '{query}'.\nHere is the data obtained from the system to answer the question:\n{results_context}\n\nProvide a helpful, concise response based ONLY on this data."
+        })
         
         try:
             response = self.client.chat.completions.create(
@@ -367,18 +363,16 @@ When the user asks a follow-up question, use the conversation context to underst
             
             response_text = response.choices[0].message.content or ""
             
-            # Add to history
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": response_text
-            })
+            # Add final response to history
+            history.add_ai_message(response_text)
             
             return response_text
             
         except Exception as e:
             return f"Error generating response: {str(e)}"
     
-    def clear_context(self) -> None:
-        """Clear conversation history and context."""
-        self.conversation_history = []
-        self.last_mentioned_nodes = []
+    def clear_context(self, session_id: str) -> None:
+        """Clear conversation history."""
+        history = self._get_history(session_id)
+        history.clear()
+
