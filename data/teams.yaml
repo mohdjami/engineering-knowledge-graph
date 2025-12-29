@@ -1,0 +1,42 @@
+teams:
+  - name: platform-team
+    lead: "@alice"
+    slack_channel: "#platform-eng"
+    pagerduty_schedule: "platform-oncall"
+    owns:
+      - api-gateway
+      - notification-service
+      - redis-main
+
+  - name: identity-team
+    lead: "@bob"
+    slack_channel: "#identity-eng"
+    pagerduty_schedule: "identity-oncall"
+    owns:
+      - auth-service
+      - users-db
+
+  - name: orders-team
+    lead: "@dave"
+    slack_channel: "#orders-eng"
+    pagerduty_schedule: "orders-oncall"
+    owns:
+      - order-service
+      - inventory-service
+      - orders-db
+      - inventory-db
+
+  - name: payments-team
+    lead: "@frank"
+    slack_channel: "#payments-eng"
+    pagerduty_schedule: "payments-oncall"
+    owns:
+      - payment-service
+      - payments-db
+
+  - name: ml-team
+    lead: "@grace"
+    slack_channel: "#ml-eng"
+    pagerduty_schedule: "ml-oncall"
+    owns:
+      - recommendation-service

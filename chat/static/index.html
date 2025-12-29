@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engineering Knowledge Graph</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">🔗</span>
+                    <h1>Engineering Knowledge Graph</h1>
+                </div>
+                <div class="header-actions">
+                    <button id="clearBtn" class="btn btn-secondary" title="Clear conversation">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                        </svg>
+                        Clear
+                    </button>
+                    <div class="status-indicator">
+                        <span class="status-dot" id="statusDot"></span>
+                        <span class="status-text" id="statusText">Connecting...</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Chat Container -->
+            <div class="chat-container">
+                <div class="messages" id="messages">
+                    <!-- Welcome message -->
+                    <div class="message assistant">
+                        <div class="message-avatar">🤖</div>
+                        <div class="message-content">
+                            <div class="message-text">
+                                <p>Welcome to the Engineering Knowledge Graph! I can help you explore your infrastructure.</p>
+                                <p>Try asking questions like:</p>
+                                <ul>
+                                    <li>"Who owns the payment service?"</li>
+                                    <li>"What does order-service depend on?"</li>
+                                    <li>"What breaks if redis-main goes down?"</li>
+                                    <li>"How does api-gateway connect to payments-db?"</li>
+                                    <li>"List all services"</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <textarea 
+                            id="messageInput" 
+                            placeholder="Ask about your infrastructure..."
+                            rows="1"
+                            autofocus
+                        ></textarea>
+                        <button id="sendBtn" class="btn btn-primary" title="Send message">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="suggestions" id="suggestions">
+                        <button class="suggestion" data-query="List all services">📦 All services</button>
+                        <button class="suggestion" data-query="List all databases">🗄️ All databases</button>
+                        <button class="suggestion" data-query="What teams are there?">👥 All teams</button>
+                        <button class="suggestion" data-query="What's the blast radius of redis-main?">💥 Redis blast radius</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
