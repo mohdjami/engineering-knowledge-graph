@@ -21,6 +21,7 @@ from pydantic import BaseModel
 
 from graph.storage import GraphStorage
 from graph.query import QueryEngine
+from graph.rdf import RDFExporter
 from chat.nlp import NLPProcessor
 
 
@@ -52,6 +53,7 @@ async def lifespan(app: FastAPI):
         nlp_processor = NLPProcessor()
         print("✅ NLP processor ready")
         
+        # Run connectors to populate graph
         # Run connectors to populate graph
         await run_connectors()
         
@@ -128,6 +130,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Add CORS middleware
 
 # Add CORS middleware
 app.add_middleware(
@@ -344,3 +348,21 @@ async def get_stats():
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     return query_engine.get_graph_stats()
+
+
+@app.get("/graph/export/rdf")
+async def export_rdf():
+    """Export graph to RDF (Turtle) format."""
+    if not storage:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+        
+    exporter = RDFExporter(storage)
+    turtle_data = exporter.export_turtle()
+    
+    return HTMLResponse(
+        content=turtle_data,
+        headers={
+            "Content-Disposition": "attachment; filename=ekg.ttl",
+            "Content-Type": "text/turtle"
+        }
+    )

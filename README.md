@@ -267,7 +267,7 @@ pytest tests/ -v
 
 ## 📹 Demo Video
 
-[Link to demo video - 3-5 minutes showing:]
+[Demo Video](https://drive.google.com/file/d/10nKLgn7TuGDEpeQg0dYkfdQR4VjT6XZA/view?usp=sharing)
 - System startup via docker-compose
 - Connectors parsing config files
 - 5+ natural language queries

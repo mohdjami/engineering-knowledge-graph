@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="/static/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <div class="app-container">
         <!-- Header -->
@@ -17,9 +19,29 @@
                     <h1>Engineering Knowledge Graph</h1>
                 </div>
                 <div class="header-actions">
+                    <a href="/graph/export/rdf" target="_blank" class="btn btn-secondary"
+                        title="Export as RDF (Turtle)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                        </svg>
+                        Export RDF
+                    </a>
+                    <button id="graphBtn" class="btn btn-secondary" title="View Knowledge Graph">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="18" cy="5" r="3"></circle>
+                            <circle cx="6" cy="12" r="3"></circle>
+                            <circle cx="18" cy="19" r="3"></circle>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                        </svg>
+                        Graph View
+                    </button>
                     <button id="clearBtn" class="btn btn-secondary" title="Clear conversation">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
                         </svg>
                         Clear
                     </button>
@@ -41,7 +63,8 @@
                         <div class="message-avatar">🤖</div>
                         <div class="message-content">
                             <div class="message-text">
-                                <p>Welcome to the Engineering Knowledge Graph! I can help you explore your infrastructure.</p>
+                                <p>Welcome to the Engineering Knowledge Graph! I can help you explore your
+                                    infrastructure.</p>
                                 <p>Try asking questions like:</p>
                                 <ul>
                                     <li>"Who owns the payment service?"</li>
@@ -58,15 +81,12 @@
                 <!-- Input Area -->
                 <div class="input-container">
                     <div class="input-wrapper">
-                        <textarea 
-                            id="messageInput" 
-                            placeholder="Ask about your infrastructure..."
-                            rows="1"
-                            autofocus
-                        ></textarea>
+                        <textarea id="messageInput" placeholder="Ask about your infrastructure..." rows="1"
+                            autofocus></textarea>
                         <button id="sendBtn" class="btn btn-primary" title="Send message">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
                             </svg>
                         </button>
                     </div>
@@ -74,13 +94,34 @@
                         <button class="suggestion" data-query="List all services">📦 All services</button>
                         <button class="suggestion" data-query="List all databases">🗄️ All databases</button>
                         <button class="suggestion" data-query="What teams are there?">👥 All teams</button>
-                        <button class="suggestion" data-query="What's the blast radius of redis-main?">💥 Redis blast radius</button>
+                        <button class="suggestion" data-query="What's the blast radius of redis-main?">💥 Redis blast
+                            radius</button>
                     </div>
                 </div>
             </div>
         </main>
+        <!-- Graph View Modal -->
+        <div id="graphModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Knowledge Graph Visualization</h2>
+                    <button id="closeGraphBtn" class="close-btn">&times;</button>
+                </div>
+                <div id="cy" class="graph-container"></div>
+                <div class="graph-controls">
+                    <div class="legend">
+                        <span class="legend-item"><span class="dot service"></span>Service</span>
+                        <span class="legend-item"><span class="dot database"></span>Database</span>
+                        <span class="legend-item"><span class="dot team"></span>Team</span>
+                    </div>
+                    <button id="resetLayoutBtn" class="btn btn-secondary btn-sm">Reset Layout</button>
+                </div>
+            </div>
+        </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
     <script src="/static/app.js"></script>
 </body>
+
 </html>

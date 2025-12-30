@@ -12,6 +12,13 @@ class EKGChat {
         this.statusDot = document.getElementById('statusDot');
         this.statusText = document.getElementById('statusText');
 
+        // Graph elements
+        this.graphBtn = document.getElementById('graphBtn');
+        this.graphModal = document.getElementById('graphModal');
+        this.closeGraphBtn = document.getElementById('closeGraphBtn');
+        this.resetLayoutBtn = document.getElementById('resetLayoutBtn');
+        this.cy = null;
+
         this.isLoading = false;
 
         this.init();
@@ -24,6 +31,16 @@ class EKGChat {
         // Event listeners
         this.sendBtn.addEventListener('click', () => this.sendMessage());
         this.clearBtn.addEventListener('click', () => this.clearChat());
+        this.graphBtn.addEventListener('click', () => this.openGraph());
+        this.closeGraphBtn.addEventListener('click', () => this.closeGraph());
+        this.resetLayoutBtn.addEventListener('click', () => this.resetLayout());
+
+        // Close modal when clicking outside
+        window.addEventListener('click', (e) => {
+            if (e.target === this.graphModal) {
+                this.closeGraph();
+            }
+        });
 
         this.messageInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -234,6 +251,155 @@ class EKGChat {
         }
 
         this.messageInput.focus();
+    }
+
+    async openGraph() {
+        this.graphModal.style.display = 'block';
+
+        // Initialize or refresh graph
+        if (!this.cy) {
+            await this.renderGraph();
+        } else {
+            this.cy.resize();
+            this.cy.layout({ name: 'cose', animate: true }).run();
+        }
+    }
+
+    closeGraph() {
+        this.graphModal.style.display = 'none';
+    }
+
+    resetLayout() {
+        if (this.cy) {
+            this.cy.layout({
+                name: 'cose',
+                animate: true,
+                randomize: false,
+                componentSpacing: 100,
+                nodeOverlap: 20,
+                idealEdgeLength: 100,
+                edgeElasticity: 100
+            }).run();
+        }
+    }
+
+    async fetchGraphData() {
+        try {
+            const [nodesRes, edgesRes] = await Promise.all([
+                fetch('/graph/nodes'),
+                fetch('/graph/edges')
+            ]);
+
+            const nodes = await nodesRes.json();
+            const edges = await edgesRes.json();
+
+            return { nodes, edges };
+        } catch (error) {
+            console.error('Failed to fetch graph data:', error);
+            return { nodes: [], edges: [] };
+        }
+    }
+
+    async renderGraph() {
+        const data = await this.fetchGraphData();
+
+        // Transform data for Cytoscape
+        const elements = [
+            ...data.nodes.map(node => ({
+                data: {
+                    id: node.id,
+                    label: node.name || node.id,
+                    type: node.type
+                },
+                classes: node.type.toLowerCase()
+            })),
+            ...data.edges.map(edge => ({
+                data: {
+                    id: edge.id || `${edge.source}-${edge.target}`,
+                    source: edge.source,
+                    target: edge.target,
+                    label: edge.type
+                }
+            }))
+        ];
+
+        this.cy = cytoscape({
+            container: document.getElementById('cy'),
+            elements: elements,
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'background-color': '#666',
+                        'label': 'data(label)',
+                        'color': '#fff',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'text-outline-width': 2,
+                        'text-outline-color': '#555',
+                        'width': 40,
+                        'height': 40,
+                        'font-size': '12px'
+                    }
+                },
+                {
+                    selector: 'node.service',
+                    style: {
+                        'background-color': '#58a6ff',
+                        'text-outline-color': '#58a6ff'
+                    }
+                },
+                {
+                    selector: 'node.database',
+                    style: {
+                        'background-color': '#3fb950',
+                        'text-outline-color': '#3fb950'
+                    }
+                },
+                {
+                    selector: 'node.team',
+                    style: {
+                        'background-color': '#d29922',
+                        'text-outline-color': '#d29922'
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 2,
+                        'line-color': '#30363d',
+                        'target-arrow-color': '#30363d',
+                        'target-arrow-shape': 'triangle',
+                        'curve-style': 'bezier',
+                        'label': 'data(label)',
+                        'font-size': '10px',
+                        'color': '#8b949e',
+                        'text-rotation': 'autorotate',
+                        'text-background-opacity': 1,
+                        'text-background-color': '#0d1117',
+                        'text-background-padding': '3px'
+                    }
+                }
+            ],
+            layout: {
+                name: 'cose',
+                idealEdgeLength: 100,
+                nodeOverlap: 20,
+                refresh: 20,
+                fit: true,
+                padding: 30,
+                randomize: false,
+                componentSpacing: 100,
+                nodeRepulsion: 400000,
+                edgeElasticity: 100,
+                nestingFactor: 5,
+                gravity: 80,
+                numIter: 1000,
+                initialTemp: 200,
+                coolingFactor: 0.95,
+                minTemp: 1.0
+            }
+        });
     }
 }
 
